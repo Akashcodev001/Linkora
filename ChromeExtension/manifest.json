@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "Linkora Extension",
+  "version": "1.0.0",
+  "description": "Linkora browser extension with OAuth and token refresh.",
+  "permissions": [
+    "storage",
+    "identity",
+    "alarms",
+    "activeTab",
+    "tabs",
+    "scripting",
+    "contextMenus",
+    "notifications"
+  ],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "http://localhost:4000/*",
+    "http://localhost:5000/*",
+    "http://localhost:8000/*",
+    "https://*.chromiumapp.org/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "src/contentScript.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Linkora",
+    "default_popup": "popup.html"
+  }
+}

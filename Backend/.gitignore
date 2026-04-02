@@ -1,0 +1,9 @@
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Build / runtime artifacts
+node_modules/
+coverage/
+*.log

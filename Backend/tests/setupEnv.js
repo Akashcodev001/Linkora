@@ -1,0 +1,9 @@
+process.env.NODE_ENV = 'test';
+process.env.PORT = process.env.PORT || '3000';
+process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/linkora-test-bootstrap';
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret';
+process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test-jwt-refresh-secret';
+process.env.BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
+process.env.FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+process.env.RATE_LIMIT_MAX_REQUESTS = process.env.RATE_LIMIT_MAX_REQUESTS || '100';
+process.env.RATE_LIMIT_WINDOW_MS = process.env.RATE_LIMIT_WINDOW_MS || '900000';

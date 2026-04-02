@@ -1,0 +1,38 @@
+name: ai-service-worker-tests
+
+on:
+  push:
+    paths:
+      - ai-service/**
+      - .github/workflows/ai-service-worker-tests.yml
+  pull_request:
+    paths:
+      - ai-service/**
+      - .github/workflows/ai-service-worker-tests.yml
+
+jobs:
+  test-ai-service:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-service
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Compile app modules
+        run: python -m compileall app
+
+      - name: Run worker regression tests
+        run: python -m unittest discover -s tests -p "test_*.py"

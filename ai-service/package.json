@@ -1,0 +1,27 @@
+{
+  "name": "linkora-ai-service",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@qdrant/js-client-rest": "^1.17.0",
+    "axios": "^1.13.6",
+    "bullmq": "^5.71.1",
+    "cheerio": "^1.2.0",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "ioredis": "^5.10.1",
+    "mongoose": "^9.3.2",
+    "nodemon": "^3.1.14",
+    "openai": "^6.2.0",
+    "pdf-parse": "^2.4.5"
+  },
+  "devDependencies": {
+    "supertest": "^7.2.2"
+  }
+}

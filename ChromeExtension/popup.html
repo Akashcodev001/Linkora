@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Linkora Auth</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="header">
+        <h1>Linkora</h1>
+        <p>Extension Authentication</p>
+      </header>
+
+      <section class="panel" id="statusPanel">
+        <p class="status" id="statusText">Checking session...</p>
+        <p class="subtle" id="providerText"></p>
+        <p class="subtle" id="expiryText"></p>
+      </section>
+
+      <section class="actions">
+        <button id="googleBtn" class="btn btn-google">Continue with Google</button>
+        <button id="githubBtn" class="btn btn-github">Continue with GitHub</button>
+      </section>
+
+      <section class="actions secondary">
+        <button id="refreshBtn" class="btn btn-muted">Refresh Access Token</button>
+        <button id="logoutBtn" class="btn btn-danger">Logout</button>
+      </section>
+
+      <section class="panel" id="capturePanel">
+        <p class="status">Quick Capture</p>
+        <p class="subtle" id="queueText">Offline queue: 0</p>
+      </section>
+
+      <section class="actions secondary">
+        <button id="capturePageBtn" class="btn btn-muted">Capture Page</button>
+        <button id="captureSelectionBtn" class="btn btn-muted">Capture Selection</button>
+      </section>
+
+      <section class="actions secondary">
+        <button id="captureScreenshotBtn" class="btn btn-muted">Capture Screenshot</button>
+        <button id="captureGraph2dBtn" class="btn btn-muted">Capture Graph (2D)</button>
+        <button id="syncQueueBtn" class="btn btn-muted">Sync Queue</button>
+      </section>
+
+      <section class="panel">
+        <p class="status">Quick Note</p>
+        <textarea id="noteInput" class="note-input" placeholder="Save a thought before you forget..."></textarea>
+        <button id="saveNoteBtn" class="btn btn-google">Save Note</button>
+      </section>
+
+      <section class="panel debug" id="debugPanel">
+        <p class="status">Debug Metadata</p>
+        <div class="debug-grid">
+          <span>Backend</span>
+          <span id="backendText">-</span>
+          <span>Issued at</span>
+          <span id="issuedAtText">-</span>
+          <span>Expires in</span>
+          <span id="expiresInText">-</span>
+          <span>Refresh scheduled</span>
+          <span id="refreshAtText">-</span>
+          <span>Updated at</span>
+          <span id="updatedAtText">-</span>
+        </div>
+      </section>
+
+      <footer>
+        <p id="message" class="message"></p>
+      </footer>
+    </main>
+
+    <script type="module" src="src/popup.js"></script>
+  </body>
+</html>
