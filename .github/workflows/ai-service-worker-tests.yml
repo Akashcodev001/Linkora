@@ -16,6 +16,37 @@ jobs:
     defaults:
       run:
         working-directory: ai-service
+    
+    env:
+      AI_SERVICE_INTERNAL_KEY: test-key-ci
+      OPENAI_API_KEY: sk-test-ci
+      MISTRAL_API_KEY: sk-test-ci
+      MONGODB_URI: mongodb://localhost:27017/linkora-test
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      QDRANT_URL: http://localhost:6333
+      NODE_ENV: test
+
+    services:
+      mongodb:
+        image: mongo:7
+        options: >-
+          --health-cmd "mongosh --eval \"db.adminCommand('ping')\"" 
+          --health-interval 10s 
+          --health-timeout 5s 
+          --health-retries 5
+        ports:
+          - 27017:27017
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
 
     steps:
       - name: Checkout
