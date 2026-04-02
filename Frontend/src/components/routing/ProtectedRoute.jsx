@@ -1,0 +1,24 @@
+import { Navigate, useLocation } from 'react-router-dom'
+import { useAuth } from '@/hooks/useAuth'
+import { ROUTES } from '@/constants/routes'
+
+export function ProtectedRoute({ children }) {
+  const { isAuthenticated, isInitialized } = useAuth()
+  const location = useLocation()
+
+  if (!isInitialized) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-bg-surface">
+        <p className="text-sm text-text-secondary">Loading session...</p>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to={ROUTES.LOGIN} replace state={{ from: location.pathname }} />
+  }
+
+  return children
+}
+
+export default ProtectedRoute
