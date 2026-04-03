@@ -40,5 +40,5 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        run: npm test
-        timeout-minutes: 2
+        run: npm test -- --exit
+        timeout-minutes: 1

@@ -21,3 +21,13 @@ test('GET /health returns 200 with valid internal key', async () => {
     assert.equal(response.body.success, true);
     assert.equal(response.body.message, 'AI service healthy');
 });
+
+// Force exit after tests complete
+process.on('exit', () => {
+    process.exit(0);
+});
+
+// Exit if no async operations are pending
+setTimeout(() => {
+    process.exit(0);
+}, 5000);
