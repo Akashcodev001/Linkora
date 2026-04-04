@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Environment, Grid, OrbitControls } from '@react-three/drei'
+import { Grid, OrbitControls } from '@react-three/drei'
 import { EffectComposer, Bloom, ToneMapping } from '@react-three/postprocessing'
 import { easing } from 'maath'
 
@@ -57,6 +57,7 @@ export function ResurfacingThreeBackground() {
         <fog attach="fog" args={['#070b14', 10, 24]} />
 
         <ambientLight intensity={0.3} />
+        <hemisphereLight intensity={0.45} color="#c7d4ff" groundColor="#0c1224" />
 
         <group scale={1.25} position={[0, 0.35, 0]}>
           <KamdoInspiredRig />
@@ -88,8 +89,6 @@ export function ResurfacingThreeBackground() {
           <Bloom luminanceThreshold={1.1} intensity={0.6} mipmapBlur />
           <ToneMapping />
         </EffectComposer>
-
-        <Environment preset="sunset" blur={0.86} />
       </Canvas>
     </div>
   )

@@ -15,9 +15,7 @@ import env from "../../config/env.js";
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3000";
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 const VERIFICATION_RESEND_COOLDOWN_MS = 2 * 60 * 1000;
-const REQUIRE_EMAIL_VERIFICATION = String(
-    process.env.AUTH_REQUIRE_EMAIL_VERIFICATION || (process.env.NODE_ENV === 'production' ? 'false' : 'true')
-).toLowerCase() !== 'false';
+const REQUIRE_EMAIL_VERIFICATION = String(process.env.AUTH_REQUIRE_EMAIL_VERIFICATION || 'true').toLowerCase() !== 'false';
 
 function buildOAuthRedirectUrl(base, params = {}) {
     const target = new URL(base);

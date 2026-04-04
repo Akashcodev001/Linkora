@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Environment, Grid, OrbitControls, Stage, useGLTF } from '@react-three/drei'
+import { Grid, OrbitControls, Stage, useGLTF } from '@react-three/drei'
 import { EffectComposer, Bloom, ToneMapping } from '@react-three/postprocessing'
 import { easing } from 'maath'
 
@@ -98,7 +98,7 @@ export function DashboardThreeBackground({ preset = 'medium' }) {
         <Suspense fallback={null}>
           <Stage
             intensity={config.stageIntensity}
-            environment="city"
+            environment={null}
             shadows={{ type: 'accumulative', bias: -0.001, intensity: Math.PI }}
             adjustCamera={false}
           >
@@ -129,7 +129,6 @@ export function DashboardThreeBackground({ preset = 'medium' }) {
           <Bloom luminanceThreshold={2} intensity={config.bloomIntensity} mipmapBlur />
           <ToneMapping />
         </EffectComposer>
-        <Environment background={false} preset="sunset" blur={0.8} />
       </Canvas>
     </div>
   )
