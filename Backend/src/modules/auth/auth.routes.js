@@ -20,6 +20,26 @@ import env from "../../config/env.js";
 
 const authRouter = Router();
 
+function isStrategyEnabled(name) {
+	return Boolean(passport?._strategy?.(name));
+}
+
+function handleMissingOAuthStrategy(provider, res) {
+	const redirectBase = env.AUTH_OAUTH_FAILURE_REDIRECT;
+	if (redirectBase) {
+		const target = new URL(redirectBase);
+		target.searchParams.set('error', `${provider}_oauth_not_configured`);
+		return res.redirect(target.toString());
+	}
+
+	return res.status(503).json({
+		success: false,
+		message: `${provider} OAuth is not configured`,
+		data: null,
+		error: 'OAuth strategy not configured',
+	});
+}
+
 
 /**
  * @route POST /api/auth/register
@@ -101,6 +121,10 @@ authRouter.post('/logout', authUser, asyncHandler(logout));
  * @access Public
  */
 authRouter.get('/google', (req, res, next) => {
+	if (!isStrategyEnabled('google')) {
+		return handleMissingOAuthStrategy('google', res);
+	}
+
 	const state = JSON.stringify({
 		client: req.query?.client || '',
 		redirect_uri: req.query?.redirect_uri || '',
@@ -120,6 +144,13 @@ authRouter.get('/google', (req, res, next) => {
  */
 authRouter.get(
 	'/google/callback',
+	(req, res, next) => {
+		if (!isStrategyEnabled('google')) {
+			return handleMissingOAuthStrategy('google', res);
+		}
+
+		return next();
+	},
 	passport.authenticate('google', {
 		session: false,
 		failureRedirect: `${env.AUTH_OAUTH_FAILURE_REDIRECT}?error=google_auth_failed`,
@@ -133,6 +164,10 @@ authRouter.get(
  * @access Public
  */
 authRouter.get('/github', (req, res, next) => {
+	if (!isStrategyEnabled('github')) {
+		return handleMissingOAuthStrategy('github', res);
+	}
+
 	const state = JSON.stringify({
 		client: req.query?.client || '',
 		redirect_uri: req.query?.redirect_uri || '',
@@ -152,6 +187,13 @@ authRouter.get('/github', (req, res, next) => {
  */
 authRouter.get(
 	'/github/callback',
+	(req, res, next) => {
+		if (!isStrategyEnabled('github')) {
+			return handleMissingOAuthStrategy('github', res);
+		}
+
+		return next();
+	},
 	passport.authenticate('github', {
 		session: false,
 		failureRedirect: `${env.AUTH_OAUTH_FAILURE_REDIRECT}?error=github_auth_failed`,
