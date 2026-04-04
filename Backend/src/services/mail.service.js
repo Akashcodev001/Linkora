@@ -85,7 +85,11 @@ function createFallbackTransport() {
 
 async function createVerifiedGmailTransport(authConfig) {
     const nextTransport = nodemailer.createTransport({
-        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        requireTLS: true,
+        family: 4,
         auth: authConfig.auth,
     });
 
