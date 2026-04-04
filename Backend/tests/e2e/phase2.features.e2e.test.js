@@ -12,7 +12,7 @@ async function createVerifiedSession() {
     const agent = request.agent(app);
     const stamp = Date.now();
     const email = `phase2_${stamp}@example.com`;
-    const password = '12345678';
+    const password = 'Strong#123';
     const username = `phase2_${stamp}`;
 
     await agent.post('/api/auth/register').send({ username, email, password });

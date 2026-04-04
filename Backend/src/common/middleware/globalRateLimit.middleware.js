@@ -61,9 +61,11 @@ function createLimiter() {
     const defaultLimit = Number(env.RATE_LIMIT_MAX_REQUESTS || 100);
     const apiGetPath = /^\/api\//;
     const authSessionPath = /^\/api\/auth\/(?:me|get-me|refresh|token-check)$/;
+    const isApiOrHealthPath = (path = '') => path === '/health' || path.startsWith('/api/');
 
     return rateLimit({
         windowMs: env.RATE_LIMIT_WINDOW_MS,
+        skip: (req) => !isApiOrHealthPath(req.path || ''),
         limit: (req) => {
             if (authSessionPath.test(req.path || '')) {
                 return Math.max(defaultLimit, 1200);

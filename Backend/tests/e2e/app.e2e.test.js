@@ -9,7 +9,7 @@ let app;
 async function createVerifiedSession() {
     const agent = request.agent(app);
     const email = `user_${Date.now()}@example.com`;
-    const password = '12345678';
+    const password = 'Strong#123';
     const username = `user_${Date.now()}`;
 
     await agent.post('/api/auth/register').send({ username, email, password });
@@ -52,7 +52,7 @@ describe('Auth flow', () => {
     test('register -> verify -> login -> refresh', async () => {
         const agent = request.agent(app);
         const email = `auth_${Date.now()}@example.com`;
-        const password = '12345678';
+        const password = 'Strong#123';
         const username = `auth_${Date.now()}`;
 
         const registerRes = await agent.post('/api/auth/register').send({ username, email, password });

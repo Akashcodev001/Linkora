@@ -54,7 +54,7 @@ describe('OAuth auth service', () => {
         const localUser = await userModel.create({
             username: 'localuser',
             email: 'local.user@example.com',
-            password: '12345678',
+            password: 'Strong#123',
             verified: false,
         });
 
