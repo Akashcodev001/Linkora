@@ -1,82 +1,100 @@
-import { useMemo, useRef } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
-import { Grid, useTexture } from '@react-three/drei'
+import { useEffect, useMemo, useRef } from 'react'
+import * as d3 from 'd3'
 import dashboardModelImage from '../../../thumbnail.png'
 
 const PRESET_CONFIG = {
   subtle: {
     mask: 'opacity-85 [mask-image:radial-gradient(circle_at_center,black_0%,black_50%,transparent_96%)]',
-    intensity: 0.12,
+    intensity: 10,
   },
   medium: {
     mask: 'opacity-95 [mask-image:radial-gradient(circle_at_center,black_0%,black_56%,transparent_96%)]',
-    intensity: 0.18,
+    intensity: 16,
   },
   bold: {
     mask: 'opacity-100 [mask-image:radial-gradient(circle_at_center,black_0%,black_62%,transparent_96%)]',
-    intensity: 0.25,
+    intensity: 24,
   },
-}
-
-function CursorResponsivePoster({ intensity }) {
-  const meshRef = useRef(null)
-  const texture = useTexture(dashboardModelImage)
-
-  useFrame((state, delta) => {
-    if (!meshRef.current) return
-
-    const targetX = state.pointer.x * intensity
-    const targetY = state.pointer.y * intensity * 0.6
-
-    meshRef.current.position.x += (targetX - meshRef.current.position.x) * Math.min(1, delta * 4)
-    meshRef.current.position.y += (targetY - meshRef.current.position.y) * Math.min(1, delta * 4)
-
-    meshRef.current.rotation.y += ((state.pointer.x * 0.2) - meshRef.current.rotation.y) * Math.min(1, delta * 4)
-    meshRef.current.rotation.x += ((-state.pointer.y * 0.12) - meshRef.current.rotation.x) * Math.min(1, delta * 4)
-  })
-
-  return (
-    <mesh ref={meshRef} position={[0, 0.15, 0]}>
-      <planeGeometry args={[6.8, 3.8, 32, 32]} />
-      <meshStandardMaterial map={texture} metalness={0.08} roughness={0.7} />
-    </mesh>
-  )
 }
 
 export function DashboardThreeBackground({ preset = 'medium' }) {
   const config = useMemo(() => PRESET_CONFIG[preset] || PRESET_CONFIG.medium, [preset])
+  const containerRef = useRef(null)
+  const cardRef = useRef(null)
+
+  useEffect(() => {
+    if (!containerRef.current || !cardRef.current) return undefined
+
+    const container = d3.select(containerRef.current)
+    const card = d3.select(cardRef.current)
+
+    const onMove = (event) => {
+      const { width, height } = containerRef.current.getBoundingClientRect()
+      const x = (event.clientX / width - 0.5) * 2
+      const y = (event.clientY / height - 0.5) * 2
+      const tx = x * config.intensity
+      const ty = y * config.intensity * 0.62
+      const ry = x * 8
+      const rx = -y * 5
+
+      card
+        .interrupt()
+        .transition()
+        .duration(120)
+        .ease(d3.easeCubicOut)
+        .style('transform', `translate3d(${tx}px, ${ty}px, 0) rotateX(${rx}deg) rotateY(${ry}deg)`)
+    }
+
+    const onLeave = () => {
+      card
+        .interrupt()
+        .transition()
+        .duration(220)
+        .ease(d3.easeCubicOut)
+        .style('transform', 'translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg)')
+    }
+
+    container.on('mousemove', onMove)
+    container.on('mouseleave', onLeave)
+
+    return () => {
+      container.on('mousemove', null)
+      container.on('mouseleave', null)
+    }
+  }, [config.intensity])
 
   return (
-    <div className={`relative h-full w-full overflow-hidden ${config.mask}`}>
-      <img
-        src={dashboardModelImage}
-        alt="Dashboard background"
-        className="absolute inset-0 h-full w-full object-cover object-center"
-        loading="eager"
-      />
+    <div ref={containerRef} className={`relative h-full w-full overflow-hidden bg-[#050b18] ${config.mask}`}>
+      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <defs>
+          <linearGradient id="d3-bg-grad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#06122b" />
+            <stop offset="60%" stopColor="#070f1d" />
+            <stop offset="100%" stopColor="#03070f" />
+          </linearGradient>
+          <pattern id="d3-grid" width="52" height="52" patternUnits="userSpaceOnUse">
+            <path d="M 52 0 L 0 0 0 52" fill="none" stroke="#2f5fa6" strokeOpacity="0.45" strokeWidth="1.2" />
+          </pattern>
+        </defs>
 
-      <div className="absolute inset-0">
-        <Canvas camera={{ position: [0, 0.25, 5.4], fov: 42 }} dpr={[1, 1.5]} gl={{ alpha: true }}>
-          <ambientLight intensity={0.45} />
-          <directionalLight position={[2.2, 2.4, 2.4]} intensity={1.1} />
-          <pointLight position={[-2.8, 0.9, 1.4]} color="#3b82f6" intensity={1.2} />
+        <rect width="1200" height="700" fill="url(#d3-bg-grad)" />
+        <rect x="0" y="430" width="1200" height="270" fill="url(#d3-grid)" opacity="0.8" />
+        <ellipse cx="220" cy="170" rx="170" ry="120" fill="#1d4ed8" opacity="0.25" />
+      </svg>
 
-          <group scale={0.58} position={[0, 0.12, 0]}>
-            <CursorResponsivePoster intensity={config.intensity} />
-          </group>
-
-          <Grid
-            renderOrder={-1}
-            position={[0, -2.1, 0]}
-            infiniteGrid
-            cellSize={0.65}
-            cellThickness={0.45}
-            sectionSize={3.2}
-            sectionThickness={1.05}
-            sectionColor={[0.35, 0.45, 0.95]}
-            fadeDistance={24}
+      <div className="absolute inset-0 flex items-center justify-center [perspective:1000px]">
+        <div
+          ref={cardRef}
+          className="relative h-[50%] w-[72%] max-w-[820px] min-h-[220px] rounded-xl border border-blue-500/30 shadow-[0_24px_80px_rgba(2,8,23,0.55)] will-change-transform"
+          style={{ transformStyle: 'preserve-3d' }}
+        >
+          <img
+            src={dashboardModelImage}
+            alt="Dashboard model"
+            className="h-full w-full rounded-xl object-cover object-center"
+            loading="eager"
           />
-        </Canvas>
+        </div>
       </div>
     </div>
   )
