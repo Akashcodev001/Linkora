@@ -3,9 +3,17 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 function buildRedisUrl() {
-    if (process.env.REDIS_URL) return process.env.REDIS_URL;
     const host = process.env.REDIS_HOST;
     const port = process.env.REDIS_PORT;
+
+    // In local development, prefer host/port to avoid Render-private REDIS_URL values.
+    if ((process.env.NODE_ENV || 'development') !== 'production' && host && port) {
+        const password = process.env.REDIS_PASSWORD || '';
+        const auth = password ? `:${password}@` : '';
+        return `redis://${auth}${host}:${port}`;
+    }
+
+    if (process.env.REDIS_URL) return process.env.REDIS_URL;
     if (!host || !port) return '';
 
     const password = process.env.REDIS_PASSWORD || '';

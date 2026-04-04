@@ -43,10 +43,17 @@ for (const [legacyKey, value] of aliasMap) {
 
 function buildRedisUrl() {
     const directUrl = pickEnv('REDIS_URL', 'APP_REDIS_URL');
-    if (directUrl) return directUrl;
-
     const host = pickEnv('REDIS_HOST', 'APP_REDIS_HOST');
     const port = pickEnv('REDIS_PORT', 'APP_REDIS_PORT');
+
+    // In local development, prefer explicit host/port to avoid using Render-private REDIS_URL values.
+    if ((process.env.NODE_ENV || 'development') !== 'production' && host && port) {
+        const password = pickEnv('REDIS_PASSWORD', 'APP_REDIS_PASSWORD');
+        const authPart = password ? `:${encodeURIComponent(password)}@` : "";
+        return `redis://${authPart}${host}:${port}`;
+    }
+
+    if (directUrl) return directUrl;
     if (!host || !port) return "";
 
     const password = pickEnv('REDIS_PASSWORD', 'APP_REDIS_PASSWORD');
