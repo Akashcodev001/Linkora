@@ -47,29 +47,37 @@ export function DashboardThreeBackground({ preset = 'medium' }) {
   const config = useMemo(() => PRESET_CONFIG[preset] || PRESET_CONFIG.medium, [preset])
 
   return (
-    <div className={`h-full w-full ${config.mask}`}>
-      <Canvas camera={{ position: [0, 0.25, 5.4], fov: 42 }} dpr={[1, 1.5]}>
-        <color attach="background" args={['#050b18']} />
-        <fog attach="fog" args={['#050b18', 5, 12]} />
+    <div className={`relative h-full w-full overflow-hidden ${config.mask}`}>
+      <img
+        src={dashboardModelImage}
+        alt="Dashboard background"
+        className="absolute inset-0 h-full w-full object-cover object-center"
+        loading="eager"
+      />
 
-        <ambientLight intensity={0.55} />
-        <directionalLight position={[2.2, 2.4, 2.4]} intensity={1.2} />
-        <pointLight position={[-2.8, 0.9, 1.4]} color="#3b82f6" intensity={1.3} />
+      <div className="absolute inset-0">
+        <Canvas camera={{ position: [0, 0.25, 5.4], fov: 42 }} dpr={[1, 1.5]} gl={{ alpha: true }}>
+          <ambientLight intensity={0.45} />
+          <directionalLight position={[2.2, 2.4, 2.4]} intensity={1.1} />
+          <pointLight position={[-2.8, 0.9, 1.4]} color="#3b82f6" intensity={1.2} />
 
-        <CursorResponsivePoster intensity={config.intensity} />
+          <group scale={0.58} position={[0, 0.12, 0]}>
+            <CursorResponsivePoster intensity={config.intensity} />
+          </group>
 
-        <Grid
-          renderOrder={-1}
-          position={[0, -2.1, 0]}
-          infiniteGrid
-          cellSize={0.65}
-          cellThickness={0.45}
-          sectionSize={3.2}
-          sectionThickness={1.05}
-          sectionColor={[0.35, 0.45, 0.95]}
-          fadeDistance={24}
-        />
-      </Canvas>
+          <Grid
+            renderOrder={-1}
+            position={[0, -2.1, 0]}
+            infiniteGrid
+            cellSize={0.65}
+            cellThickness={0.45}
+            sectionSize={3.2}
+            sectionThickness={1.05}
+            sectionColor={[0.35, 0.45, 0.95]}
+            fadeDistance={24}
+          />
+        </Canvas>
+      </div>
     </div>
   )
 }
