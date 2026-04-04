@@ -107,8 +107,16 @@ export async function register(req,res){
             });
         } catch (error) {
             if (REQUIRE_EMAIL_VERIFICATION) {
-                await userModel.findByIdAndDelete(user._id);
-                return sendError(res, "Could not send verification email. Please try again.", error.message, 500);
+                return sendSuccess(res, "Account created, but verification email could not be sent right now. Please use resend verification after a moment.", {
+                    user: {
+                        id: user._id,
+                        username: user.username,
+                        email: user.email,
+                        role: user.role,
+                        verified: user.verified,
+                    },
+                    emailDeliveryFailed: true,
+                }, 201);
             }
 
             user.verified = true;
