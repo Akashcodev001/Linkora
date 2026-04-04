@@ -15,6 +15,7 @@ import env from "../../config/env.js";
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3000";
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 const VERIFICATION_RESEND_COOLDOWN_MS = 2 * 60 * 1000;
+const REQUIRE_EMAIL_VERIFICATION = String(process.env.AUTH_REQUIRE_EMAIL_VERIFICATION || 'true').toLowerCase() !== 'false';
 
 function buildOAuthRedirectUrl(base, params = {}) {
     const target = new URL(base);
@@ -105,8 +106,22 @@ export async function register(req,res){
                     <p>Best regards,<br>The Linkora Team</p>`
             });
         } catch (error) {
-            await userModel.findByIdAndDelete(user._id);
-            return sendError(res, "Could not send verification email. Please try again.", error.message, 500);
+            if (REQUIRE_EMAIL_VERIFICATION) {
+                await userModel.findByIdAndDelete(user._id);
+                return sendError(res, "Could not send verification email. Please try again.", error.message, 500);
+            }
+
+            user.verified = true;
+            await user.save();
+            return sendSuccess(res, "User registered successfully", {
+                user:{
+                    id:user._id,
+                    username:user.username,
+                    email:user.email,
+                    role:user.role,
+                    verified:user.verified,
+                }
+            }, 201);
         }
 
         user.verificationEmailLastSentAt = new Date();
@@ -148,7 +163,7 @@ export async function login(req,res){
         return sendError(res, "Invalid email or password", "Incorrect password", 400);
     }
 
-    if(!user.verified){
+    if(REQUIRE_EMAIL_VERIFICATION && !user.verified){
         return sendError(res, "Please verify your email before logging in", "Email not verified", 400);
     }
 
