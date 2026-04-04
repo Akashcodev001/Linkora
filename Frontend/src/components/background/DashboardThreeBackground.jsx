@@ -21,12 +21,18 @@ export function DashboardThreeBackground({ preset = 'medium' }) {
   const config = useMemo(() => PRESET_CONFIG[preset] || PRESET_CONFIG.medium, [preset])
   const containerRef = useRef(null)
   const cardRef = useRef(null)
+  const backgroundFarRef = useRef(null)
+  const backgroundMidRef = useRef(null)
+  const gridRef = useRef(null)
 
   useEffect(() => {
     if (!containerRef.current || !cardRef.current) return undefined
 
     const container = d3.select(containerRef.current)
     const card = d3.select(cardRef.current)
+    const far = d3.select(backgroundFarRef.current)
+    const mid = d3.select(backgroundMidRef.current)
+    const grid = d3.select(gridRef.current)
 
     const onMove = (event) => {
       const { width, height } = containerRef.current.getBoundingClientRect()
@@ -37,12 +43,40 @@ export function DashboardThreeBackground({ preset = 'medium' }) {
       const ry = x * 8
       const rx = -y * 5
 
+      const farX = x * config.intensity * 0.18
+      const farY = y * config.intensity * 0.12
+      const midX = x * config.intensity * 0.34
+      const midY = y * config.intensity * 0.22
+      const gridX = x * config.intensity * 0.5
+      const gridY = y * config.intensity * 0.28
+
       card
         .interrupt()
         .transition()
         .duration(120)
         .ease(d3.easeCubicOut)
         .style('transform', `translate3d(${tx}px, ${ty}px, 0) rotateX(${rx}deg) rotateY(${ry}deg)`)
+
+      far
+        .interrupt()
+        .transition()
+        .duration(180)
+        .ease(d3.easeCubicOut)
+        .style('transform', `translate3d(${farX}px, ${farY}px, 0)`)
+
+      mid
+        .interrupt()
+        .transition()
+        .duration(160)
+        .ease(d3.easeCubicOut)
+        .style('transform', `translate3d(${midX}px, ${midY}px, 0)`)
+
+      grid
+        .interrupt()
+        .transition()
+        .duration(130)
+        .ease(d3.easeCubicOut)
+        .style('transform', `translate3d(${gridX}px, ${gridY}px, 0)`)
     }
 
     const onLeave = () => {
@@ -52,6 +86,27 @@ export function DashboardThreeBackground({ preset = 'medium' }) {
         .duration(220)
         .ease(d3.easeCubicOut)
         .style('transform', 'translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg)')
+
+      far
+        .interrupt()
+        .transition()
+        .duration(260)
+        .ease(d3.easeCubicOut)
+        .style('transform', 'translate3d(0, 0, 0)')
+
+      mid
+        .interrupt()
+        .transition()
+        .duration(240)
+        .ease(d3.easeCubicOut)
+        .style('transform', 'translate3d(0, 0, 0)')
+
+      grid
+        .interrupt()
+        .transition()
+        .duration(220)
+        .ease(d3.easeCubicOut)
+        .style('transform', 'translate3d(0, 0, 0)')
     }
 
     container.on('mousemove', onMove)
@@ -77,9 +132,16 @@ export function DashboardThreeBackground({ preset = 'medium' }) {
           </pattern>
         </defs>
 
-        <rect width="1200" height="700" fill="url(#d3-bg-grad)" />
-        <rect x="0" y="430" width="1200" height="270" fill="url(#d3-grid)" opacity="0.8" />
-        <ellipse cx="220" cy="170" rx="170" ry="120" fill="#1d4ed8" opacity="0.25" />
+        <g ref={backgroundFarRef} style={{ willChange: 'transform' }}>
+          <rect width="1200" height="700" fill="url(#d3-bg-grad)" />
+        </g>
+        <g ref={backgroundMidRef} style={{ willChange: 'transform' }}>
+          <ellipse cx="220" cy="170" rx="170" ry="120" fill="#1d4ed8" opacity="0.25" />
+          <ellipse cx="960" cy="140" rx="130" ry="90" fill="#0ea5e9" opacity="0.12" />
+        </g>
+        <g ref={gridRef} style={{ willChange: 'transform' }}>
+          <rect x="0" y="430" width="1200" height="270" fill="url(#d3-grid)" opacity="0.8" />
+        </g>
       </svg>
 
       <div className="absolute inset-0 flex items-center justify-center [perspective:1000px]">
