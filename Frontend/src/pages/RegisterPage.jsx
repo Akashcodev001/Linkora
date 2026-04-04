@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Globe, Sparkles, ShieldCheck, UserPlus, Mail, LockKeyhole, ArrowRight } from 'lucide-react'
+import { Globe, Sparkles, ShieldCheck, UserPlus, Mail, LockKeyhole, ArrowRight, Eye, EyeOff, CheckCircle2, Circle } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -18,10 +18,20 @@ export function RegisterPage() {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [formError, setFormError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [registerUser, { isLoading }] = useRegisterMutation()
   const navigate = useNavigate()
+
+  const passwordChecks = {
+    length: password.length >= 8,
+    uppercase: /[A-Z]/.test(password),
+    lowercase: /[a-z]/.test(password),
+    number: /\d/.test(password),
+    special: /[^A-Za-z0-9]/.test(password),
+  }
+  const isStrongPassword = Object.values(passwordChecks).every(Boolean)
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -35,8 +45,8 @@ export function RegisterPage() {
       return
     }
 
-    if (password.trim().length < 8) {
-      const msg = 'Password must be at least 8 characters.'
+    if (!isStrongPassword) {
+      const msg = 'Use a stronger password with uppercase, lowercase, number, special character, and 8+ length.'
       setFormError(msg)
       toast.error(msg)
       return
@@ -148,12 +158,44 @@ export function RegisterPage() {
               <div>
                 <label className="text-sm font-medium text-text-secondary mb-2 block">Password</label>
                 <Input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="At least 8 characters"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   className="bg-bg-base/60 border-border/70 focus:border-state-info/50"
+                  rightSlot={
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((current) => !current)}
+                      className="inline-flex items-center justify-center rounded p-0.5 text-text-muted hover:text-text-primary"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  }
                 />
+                <div className="mt-2 grid grid-cols-1 gap-1 text-xs text-text-muted sm:grid-cols-2">
+                  <div className="inline-flex items-center gap-1.5">
+                    {passwordChecks.length ? <CheckCircle2 size={14} className="text-state-success" /> : <Circle size={14} />}
+                    8+ characters
+                  </div>
+                  <div className="inline-flex items-center gap-1.5">
+                    {passwordChecks.uppercase ? <CheckCircle2 size={14} className="text-state-success" /> : <Circle size={14} />}
+                    Uppercase letter
+                  </div>
+                  <div className="inline-flex items-center gap-1.5">
+                    {passwordChecks.lowercase ? <CheckCircle2 size={14} className="text-state-success" /> : <Circle size={14} />}
+                    Lowercase letter
+                  </div>
+                  <div className="inline-flex items-center gap-1.5">
+                    {passwordChecks.number ? <CheckCircle2 size={14} className="text-state-success" /> : <Circle size={14} />}
+                    Number
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 sm:col-span-2">
+                    {passwordChecks.special ? <CheckCircle2 size={14} className="text-state-success" /> : <Circle size={14} />}
+                    Special character
+                  </div>
+                </div>
               </div>
 
               {formError && (
@@ -172,6 +214,7 @@ export function RegisterPage() {
                 className="w-full h-11 font-medium group" 
                 type="submit" 
                 loading={isLoading}
+                disabled={isLoading || !isStrongPassword}
               >
                 {isLoading ? 'Creating account...' : (
                   <>

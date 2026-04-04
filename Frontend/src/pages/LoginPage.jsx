@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Globe, Sparkles, ShieldCheck, Mail, LockKeyhole, ArrowRight } from 'lucide-react'
+import { Globe, Sparkles, ShieldCheck, Mail, LockKeyhole, ArrowRight, Eye, EyeOff } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -17,6 +17,7 @@ function buildOAuthUrl(provider) {
 export function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [formError, setFormError] = useState('')
   const [login, { isLoading }] = useLoginMutation()
   const navigate = useNavigate()
@@ -187,11 +188,21 @@ export function LoginPage() {
               <div>
                 <label className="text-sm font-medium text-text-secondary mb-2 block">Password</label>
                 <Input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   className="bg-bg-base/60 border-border/70 focus:border-brand/50"
+                  rightSlot={
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((current) => !current)}
+                      className="inline-flex items-center justify-center rounded p-0.5 text-text-muted hover:text-text-primary"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  }
                 />
               </div>
 

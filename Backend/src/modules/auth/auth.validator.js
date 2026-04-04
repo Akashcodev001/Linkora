@@ -23,7 +23,9 @@ export const registerValidator = [
 
     body("password")
         .notEmpty().withMessage("Password is required")
-        .isLength({ min: 6 }).withMessage("Password must be at least 6 characters"),
+        .isLength({ min: 8 }).withMessage("Password must be at least 8 characters")
+        .matches(/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])/)
+        .withMessage("Password must include uppercase, lowercase, number, and special character"),
 
     validate
 ];
