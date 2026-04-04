@@ -84,17 +84,32 @@ function createFallbackTransport() {
 }
 
 async function createVerifiedGmailTransport(authConfig) {
-    const nextTransport = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 587,
-        secure: false,
-        requireTLS: true,
-        family: 4,
-        auth: authConfig.auth,
-    });
+    const candidates = [
+        { host: 'smtp.gmail.com', port: 587, secure: false, requireTLS: true },
+        { host: 'smtp.gmail.com', port: 465, secure: true, requireTLS: false },
+    ];
 
-    await nextTransport.verify();
-    return nextTransport;
+    let lastError = null;
+
+    for (const candidate of candidates) {
+        const nextTransport = nodemailer.createTransport({
+            ...candidate,
+            family: 4,
+            connectionTimeout: 15000,
+            greetingTimeout: 15000,
+            socketTimeout: 30000,
+            auth: authConfig.auth,
+        });
+
+        try {
+            await nextTransport.verify();
+            return nextTransport;
+        } catch (error) {
+            lastError = error;
+        }
+    }
+
+    throw lastError || new Error('Unable to verify Gmail SMTP transport');
 }
 
 async function getTransporter() {
