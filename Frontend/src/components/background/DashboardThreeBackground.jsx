@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Grid, OrbitControls, Stage } from '@react-three/drei'
+import { Grid, OrbitControls, Stage, useGLTF } from '@react-three/drei'
 import { EffectComposer, Bloom, ToneMapping } from '@react-three/postprocessing'
 import { easing } from 'maath'
 
@@ -34,6 +34,7 @@ function KamdoModel({ movement = 0.14, ...props }) {
   const stripe = useRef(null)
   const light = useRef(null)
   const cursorRef = useRef({ x: 0, y: 0 })
+  const { nodes, materials } = useGLTF('/s2wt_kamdo_industrial_divinities-transformed.glb')
 
   useEffect(() => {
     const onMove = (event) => {
@@ -75,17 +76,10 @@ function KamdoModel({ movement = 0.14, ...props }) {
 
   return (
     <group ref={rig} {...props}>
-      <mesh castShadow receiveShadow position={[0, -0.45, 0]}>
-        <cylinderGeometry args={[0.65, 0.86, 1.5, 40]} />
-        <meshStandardMaterial color="#5f6f8a" metalness={0.82} roughness={0.24} />
-      </mesh>
+      <mesh castShadow receiveShadow geometry={nodes.body001.geometry} material={materials.Body} />
       <group ref={head}>
-        <mesh castShadow receiveShadow position={[0, 0.55, 0]}>
-          <sphereGeometry args={[0.52, 48, 48]} />
-          <meshStandardMaterial color="#8f9eb2" metalness={0.78} roughness={0.2} />
-        </mesh>
-        <mesh castShadow receiveShadow position={[0, 0.62, 0.56]}>
-          <torusGeometry args={[0.2, 0.04, 24, 90]} />
+        <mesh castShadow receiveShadow geometry={nodes.head001.geometry} material={materials.Head} />
+        <mesh castShadow receiveShadow geometry={nodes.stripe001.geometry}>
           <meshBasicMaterial ref={stripe} toneMapped={false} />
           <pointLight ref={light} intensity={1} color={[10, 2, 5]} distance={2.5} />
         </mesh>
@@ -139,5 +133,7 @@ export function DashboardThreeBackground({ preset = 'medium' }) {
     </div>
   )
 }
+
+useGLTF.preload('/s2wt_kamdo_industrial_divinities-transformed.glb')
 
 export default DashboardThreeBackground
