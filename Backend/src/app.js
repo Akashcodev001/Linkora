@@ -2,6 +2,8 @@ import express from 'express';
 import cookiesParser from 'cookie-parser';
 import helmet from 'helmet';
 import hpp from 'hpp';
+import path from 'path';
+import { fileURLToPath } from 'url';
 const app = express();
 import authRouter from './modules/auth/auth.routes.js';
 import itemRouter from './modules/item/item.routes.js';
@@ -21,6 +23,10 @@ import { notFoundHandler, errorHandler } from './common/middleware/error.middlew
 import { globalRateLimit } from './common/middleware/globalRateLimit.middleware.js';
 import env from './config/env.js';
 import { getAiQueueHealth, testRedisConnection } from './queues/processing.queue.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const publicDir = path.resolve(__dirname, '../public');
 
 // Security middleware
 app.use(helmet());
@@ -121,6 +127,11 @@ app.use('/api/graph', graphRouter);
 app.use('/api/search', searchRouter);
 app.use('/api/resurfacing', resurfacingRouter);
 app.use('/api/admin', adminRouter);
+
+app.use(express.static(publicDir));
+app.get(/^(?!\/api\/).*/, (req, res) => {
+    res.sendFile(path.join(publicDir, 'index.html'));
+});
 
 app.use(notFoundHandler);
 app.use(errorHandler);
