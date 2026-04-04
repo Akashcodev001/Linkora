@@ -1,5 +1,32 @@
 import itemModel from '../../models/item.model.js';
 
+const LEXICAL_STOP_WORDS = new Set([
+    'the', 'and', 'for', 'with', 'from', 'that', 'this', 'your', 'you', 'are', 'was', 'were', 'have', 'has', 'had',
+    'about', 'into', 'over', 'under', 'after', 'before', 'what', 'when', 'where', 'which', 'while', 'will', 'would',
+    'note', 'notes', 'item', 'items', 'link', 'links', 'page', 'pages', 'content', 'summary', 'document', 'file',
+]);
+
+function lexicalTokens(value) {
+    return String(value || '')
+        .toLowerCase()
+        .match(/[a-z0-9]+/g)
+        ?.filter((token) => token.length > 3 && !LEXICAL_STOP_WORDS.has(token)) || [];
+}
+
+function getSourceLexicalProfile(item) {
+    const sourceText = [
+        item?.title,
+        item?.description,
+        item?.content,
+        item?.topic,
+        ...(Array.isArray(item?.metadata?.autoTags) ? item.metadata.autoTags : []),
+    ]
+        .filter(Boolean)
+        .join(' ');
+
+    return new Set(lexicalTokens(sourceText));
+}
+
 /**
  * Create a new item
  * @param {Object} itemData - Item data
@@ -250,12 +277,102 @@ export async function addTagsToItems(itemIds, tagIds) {
  */
 export async function getRelatedItems(itemId, userId, limit = 5) {
     const item = await itemModel.findOne({ _id: itemId, userId, isDeleted: false }).lean();
-    if (!item || !item.tags || item.tags.length === 0) return [];
+    if (!item) return [];
 
-    return itemModel
-        .find({ userId, isDeleted: false, tags: { $in: item.tags }, _id: { $ne: itemId } })
-        .limit(limit)
+    const tagIds = Array.isArray(item.tags)
+        ? item.tags.map((tag) => String(tag)).filter(Boolean)
+        : [];
+
+    const autoTags = Array.isArray(item?.metadata?.autoTags)
+        ? item.metadata.autoTags.map((tag) => String(tag || '').trim().toLowerCase()).filter(Boolean)
+        : [];
+
+    const clusterId = String(item.clusterId || '').trim();
+
+    const queryOr = [];
+    if (tagIds.length > 0) {
+        queryOr.push({ tags: { $in: tagIds } });
+    }
+    if (autoTags.length > 0) {
+        queryOr.push({ 'metadata.autoTags': { $in: autoTags } });
+    }
+    if (clusterId) {
+        queryOr.push({ clusterId });
+    }
+
+    const candidatesQuery = queryOr.length > 0
+        ? { userId, isDeleted: false, _id: { $ne: itemId }, $or: queryOr }
+        : { userId, isDeleted: false, _id: { $ne: itemId } };
+
+    const candidates = await itemModel
+        .find(candidatesQuery)
+        .sort({ updatedAt: -1, createdAt: -1 })
+        .limit(queryOr.length > 0 ? Math.max(Number(limit || 5) * 4, 20) : 80)
         .lean();
+
+    const sourceTags = new Set(tagIds);
+    const sourceAutoTags = new Set(autoTags);
+    const sourceLexical = getSourceLexicalProfile(item);
+
+    const ranked = candidates
+        .map((candidate) => {
+            const candidateTagIds = Array.isArray(candidate.tags)
+                ? candidate.tags.map((tag) => String(tag)).filter(Boolean)
+                : [];
+            const candidateAutoTags = Array.isArray(candidate?.metadata?.autoTags)
+                ? candidate.metadata.autoTags.map((tag) => String(tag || '').trim().toLowerCase()).filter(Boolean)
+                : [];
+
+            const candidateText = [
+                candidate?.title,
+                candidate?.description,
+                candidate?.content,
+                candidate?.topic,
+                ...candidateAutoTags,
+            ]
+                .filter(Boolean)
+                .join(' ');
+            const candidateLexical = lexicalTokens(candidateText);
+
+            const sharedTagCount = candidateTagIds.reduce((count, tag) => count + (sourceTags.has(tag) ? 1 : 0), 0);
+            const sharedAutoTagCount = candidateAutoTags.reduce((count, tag) => count + (sourceAutoTags.has(tag) ? 1 : 0), 0);
+            const sameCluster = clusterId && String(candidate.clusterId || '').trim() === clusterId;
+            const sameType = String(candidate.type || '') === String(item.type || '');
+            const lexicalOverlap = candidateLexical.reduce((count, token) => count + (sourceLexical.has(token) ? 1 : 0), 0);
+
+            const recency = new Date(candidate.updatedAt || candidate.createdAt || 0).getTime() || 0;
+            const score =
+                (sharedTagCount * 3) +
+                (Math.min(sharedAutoTagCount, 3) * 1.5) +
+                (sameCluster ? 2 : 0) +
+                (sameType ? 0.5 : 0) +
+                Math.min(lexicalOverlap, 4);
+
+            return {
+                ...candidate,
+                relatedScore: Number(score.toFixed(4)),
+                recency,
+            };
+        })
+        .sort((left, right) => {
+            if (right.relatedScore !== left.relatedScore) {
+                return right.relatedScore - left.relatedScore;
+            }
+            return right.recency - left.recency;
+        });
+
+    const scored = ranked
+        .filter((candidate) => candidate.relatedScore > 0)
+        .slice(0, Number(limit || 5))
+        .map(({ recency, ...candidate }) => candidate);
+
+    if (scored.length > 0) {
+        return scored;
+    }
+
+    return ranked
+        .slice(0, Number(limit || 5))
+        .map(({ recency, ...candidate }) => candidate);
 }
 
 export async function findUserItemsForSemantic(userId, excludeItemId = null) {

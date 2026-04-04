@@ -9,9 +9,21 @@ import Spinner from '@/components/ui/Spinner'
 import useGraphData from '@/hooks/useGraphData'
 import { setGraphData } from '@/features/graph/graphSlice'
 import { useDispatch } from 'react-redux'
-import { Network } from 'lucide-react'
+import { Cuboid, Network } from 'lucide-react'
 
 const ForceGraph2D = lazy(() => import('react-force-graph-2d'))
+const ForceGraph3D = lazy(() => import('react-force-graph-3d'))
+
+const CLUSTER_PALETTE = [
+  '#0f766e',
+  '#2563eb',
+  '#7c3aed',
+  '#ea580c',
+  '#dc2626',
+  '#0891b2',
+  '#16a34a',
+  '#db2777',
+]
 
 const normalizeGraphPayload = (response) => {
   const payload = response?.data || response || {}
@@ -19,7 +31,38 @@ const normalizeGraphPayload = (response) => {
     nodes: payload?.nodes || [],
     links: payload?.links || payload?.edges || [],
     stats: payload?.stats || {},
+    clusters: payload?.clusters || [],
   }
+}
+
+const getNodeClusterKey = (node) => String(node?.clusterId || node?.topic || node?.type || 'default')
+
+const buildClusterColorMap = (clusters, nodes) => {
+  const colorMap = new Map()
+  const clusterOrder = []
+
+  clusters.forEach((cluster) => {
+    const key = String(cluster?.id || cluster?.label || cluster?.topic || '')
+    if (!key || colorMap.has(key)) {
+      return
+    }
+
+    const index = clusterOrder.length % CLUSTER_PALETTE.length
+    colorMap.set(key, CLUSTER_PALETTE[index])
+    clusterOrder.push(key)
+  })
+
+  nodes.forEach((node) => {
+    const key = getNodeClusterKey(node)
+    if (colorMap.has(key)) {
+      return
+    }
+
+    const index = colorMap.size % CLUSTER_PALETTE.length
+    colorMap.set(key, CLUSTER_PALETTE[index])
+  })
+
+  return colorMap
 }
 
 function GraphCanvasSkeleton() {
@@ -38,6 +81,7 @@ export function GraphPage() {
   const [dimensions, setDimensions] = useState({ width: 980, height: 560 })
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 1024)
   const [performanceMode, setPerformanceMode] = useState(true)
+  const [graphMode, setGraphMode] = useState('2d')
   const [zoomK, setZoomK] = useState(1)
 
   const {
@@ -49,6 +93,7 @@ export function GraphPage() {
   } = useGetGraphQuery({ maxNodes: 100, maxEdges: 800 })
 
   const baseGraph = normalizeGraphPayload(rawGraph)
+  const clusterColorMap = useMemo(() => buildClusterColorMap(baseGraph.clusters, baseGraph.nodes), [baseGraph.clusters, baseGraph.nodes])
 
   const {
     nodes,
@@ -129,7 +174,9 @@ export function GraphPage() {
       .filter((node) => node?.type !== 'collection')
       .sort((a, b) => (nodeDegree.get(String(b?.id)) || 0) - (nodeDegree.get(String(a?.id)) || 0))
 
-    const nodeBudget = zoomK < 0.8 ? 180 : zoomK < 1.3 ? 260 : 360
+    const nodeBudget = graphMode === '3d'
+      ? (zoomK < 1 ? 220 : zoomK < 1.6 ? 320 : 420)
+      : (zoomK < 0.8 ? 180 : zoomK < 1.3 ? 260 : 360)
     const picked = []
     const seen = new Set()
 
@@ -159,7 +206,7 @@ export function GraphPage() {
       nodes: picked,
       links: filteredLinks,
     }
-  }, [links, nodes, performanceMode, selectedNodeId, zoomK])
+  }, [graphMode, links, nodes, performanceMode, selectedNodeId, zoomK])
 
   const forceGraphData = useMemo(() => {
     const toEndpointId = (value) => {
@@ -254,6 +301,19 @@ export function GraphPage() {
     return nodes.find((node) => String(node?.id) === String(selectedNodeId)) || null
   }, [nodes, selectedNodeId])
 
+  const selectedCluster = useMemo(() => {
+    if (!selectedNode) {
+      return null
+    }
+
+    const clusterId = String(selectedNode?.clusterId || '')
+    if (!clusterId) {
+      return null
+    }
+
+    return baseGraph.clusters.find((cluster) => String(cluster?.id) === clusterId) || null
+  }, [baseGraph.clusters, selectedNode])
+
   const relationCount = useMemo(() => {
     if (!selectedNodeId) {
       return 0
@@ -320,7 +380,7 @@ export function GraphPage() {
           <div>
             <h1 className="text-lg font-semibold text-text-primary">Knowledge Graph</h1>
             <p className="text-sm text-text-secondary">
-              {baseGraph.stats?.nodeCount || nodes.length} nodes • {baseGraph.stats?.edgeCount || links.length} links
+              {baseGraph.stats?.nodeCount || nodes.length} nodes • {baseGraph.stats?.edgeCount || links.length} links • {baseGraph.stats?.clusterCount || baseGraph.clusters.length || 0} clusters
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -329,6 +389,14 @@ export function GraphPage() {
                 <Spinner size={12} /> Expanding
               </span>
             ) : null}
+            <Button
+              size="sm"
+              variant={graphMode === '3d' ? 'default' : 'ghost'}
+              onClick={() => setGraphMode((prev) => (prev === '2d' ? '3d' : '2d'))}
+              leftIcon={<Cuboid size={14} />}
+            >
+              {graphMode === '3d' ? '3D View' : '2D View'}
+            </Button>
             <Button
               size="sm"
               variant={performanceMode ? 'default' : 'ghost'}
@@ -344,53 +412,108 @@ export function GraphPage() {
 
         <div ref={containerRef} className="overflow-hidden rounded-default border border-border bg-surface-2">
           <Suspense fallback={<Skeleton className="h-[560px] w-full" />}>
-            <ForceGraph2D
-              ref={graphRef}
-              width={dimensions.width}
-              height={dimensions.height}
-              graphData={forceGraphData}
-              nodeLabel={(node) => `${node?.label || 'Node'} (${node?.type || 'unknown'})`}
-              nodeAutoColorBy="type"
-              linkColor={() => '#cbd5e1'}
-              linkDirectionalParticles={0}
-              nodeCanvasObject={(node, ctx, globalScale) => {
-                const radius = selectedNodeId && String(node?.id) === String(selectedNodeId) ? 6 : 4
-                ctx.beginPath()
-                ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false)
-                ctx.fillStyle = node?.color || '#f97316'
-                ctx.fill()
+            {graphMode === '3d' ? (
+              <ForceGraph3D
+                ref={graphRef}
+                width={dimensions.width}
+                height={dimensions.height}
+                graphData={forceGraphData}
+                nodeLabel={(node) => `${node?.label || 'Node'} (${node?.type || 'unknown'})`}
+                nodeAutoColorBy={getNodeClusterKey}
+                nodeColor={(node) => clusterColorMap.get(getNodeClusterKey(node)) || '#64748b'}
+                nodeVal={(node) => (selectedNodeId && String(node?.id) === String(selectedNodeId) ? 8 : 4)}
+                linkColor={(link) => {
+                  const type = String(link?.type || '').toLowerCase()
+                  if (type === 'in_collection') return '#94a3b8'
+                  if (type === 'semantic_related') return '#0f766e'
+                  if (type === 'same_cluster') return '#7c3aed'
+                  return '#cbd5e1'
+                }}
+                linkWidth={(link) => {
+                  const base = Number(link?.weight || 1)
+                  return Math.max(0.35, Math.min(2.8, base * 0.9))
+                }}
+                linkOpacity={0.65}
+                onNodeClick={handleNodeClick}
+                onZoom={({ k }) => setZoomK(k)}
+                cooldownTicks={100}
+              />
+            ) : (
+              <ForceGraph2D
+                ref={graphRef}
+                width={dimensions.width}
+                height={dimensions.height}
+                graphData={forceGraphData}
+                nodeLabel={(node) => `${node?.label || 'Node'} (${node?.type || 'unknown'})`}
+                linkColor={() => '#cbd5e1'}
+                linkDirectionalParticles={0}
+                nodeCanvasObject={(node, ctx, globalScale) => {
+                  const radius = selectedNodeId && String(node?.id) === String(selectedNodeId) ? 6 : 4
+                  const clusterKey = getNodeClusterKey(node)
+                  const baseColor = clusterColorMap.get(clusterKey) || '#64748b'
+                  ctx.beginPath()
+                  ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false)
+                  ctx.fillStyle = baseColor
+                  ctx.fill()
 
-                ctx.lineWidth = selectedNodeId && String(node?.id) === String(selectedNodeId) ? 2 : 1
-                ctx.strokeStyle = selectedNodeId && String(node?.id) === String(selectedNodeId) ? '#ea580c' : 'rgba(15, 23, 42, 0.25)'
-                ctx.stroke()
+                  ctx.lineWidth = selectedNodeId && String(node?.id) === String(selectedNodeId) ? 2 : 1
+                  ctx.strokeStyle = selectedNodeId && String(node?.id) === String(selectedNodeId) ? '#ea580c' : 'rgba(15, 23, 42, 0.25)'
+                  ctx.stroke()
 
-                if (globalScale < 1 && performanceMode) {
-                  return
-                }
+                  if (globalScale < 1 && performanceMode) {
+                    return
+                  }
 
-                const label = node?.label || 'Node'
-                const fontSize = 10 / Math.max(globalScale, 0.6)
-                ctx.font = `${fontSize}px sans-serif`
-                const textWidth = ctx.measureText(label).width
-                const bckgDimensions = [textWidth + 8, fontSize + 6]
+                  const label = node?.label || 'Node'
+                  const fontSize = 10 / Math.max(globalScale, 0.6)
+                  ctx.font = `${fontSize}px sans-serif`
+                  const textWidth = ctx.measureText(label).width
+                  const bckgDimensions = [textWidth + 8, fontSize + 6]
 
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
-                ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y + radius + 2, bckgDimensions[0], bckgDimensions[1])
+                  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
+                  ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y + radius + 2, bckgDimensions[0], bckgDimensions[1])
 
-                ctx.textAlign = 'center'
-                ctx.textBaseline = 'middle'
-                ctx.fillStyle = '#334155'
-                ctx.fillText(label, node.x, node.y + radius + 2 + bckgDimensions[1] / 2)
-              }}
-              onNodeClick={handleNodeClick}
-              onZoom={({ k }) => setZoomK(k)}
-              cooldownTicks={120}
-            />
+                  ctx.textAlign = 'center'
+                  ctx.textBaseline = 'middle'
+                  ctx.fillStyle = '#334155'
+                  ctx.fillText(label, node.x, node.y + radius + 2 + bckgDimensions[1] / 2)
+                }}
+                onNodeClick={handleNodeClick}
+                onZoom={({ k }) => setZoomK(k)}
+                cooldownTicks={120}
+              />
+            )}
           </Suspense>
         </div>
       </Card>
 
       <Card padding="comfortable" className="space-y-3">
+        <div className="space-y-2">
+          <h2 className="text-sm font-semibold text-text-primary">Topic Clusters</h2>
+          {baseGraph.clusters.length ? (
+            <div className="space-y-2">
+              {baseGraph.clusters.slice(0, 8).map((cluster) => {
+                const clusterKey = String(cluster?.id || cluster?.label || cluster?.topic || '')
+                const color = clusterColorMap.get(clusterKey) || '#64748b'
+                return (
+                  <div key={clusterKey} className="flex items-center justify-between gap-3 rounded-default border border-border bg-surface px-3 py-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-text-primary">{cluster.label || cluster.topic || 'Topic'}</p>
+                        <p className="text-xs text-text-secondary">{cluster.type || 'semantic'} cluster</p>
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-text-secondary">{cluster.itemCount || 0}</span>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-text-secondary">Clusters will appear after enough items are saved and embedded.</p>
+          )}
+        </div>
+
         <h2 className="text-sm font-semibold text-text-primary">Node Details</h2>
         {!selectedNode ? (
           <p className="text-sm text-text-secondary">Click any node to inspect and expand its neighborhood.</p>
@@ -399,6 +522,8 @@ export function GraphPage() {
             <p className="text-sm font-semibold text-text-primary">{selectedNode?.label || 'Unnamed node'}</p>
             <p className="text-xs text-text-secondary">Type: {selectedNode?.type || 'unknown'}</p>
             <p className="text-xs text-text-secondary">Category: {selectedNode?.category || 'n/a'}</p>
+            <p className="text-xs text-text-secondary">Topic: {selectedNode?.topic || selectedCluster?.label || 'n/a'}</p>
+            <p className="text-xs text-text-secondary">Cluster: {selectedNode?.clusterId || selectedCluster?.id || 'n/a'}</p>
             <p className="text-xs text-text-secondary">Connections: {relationCount}</p>
             <Button size="sm" variant="ghost" onClick={clearSelection}>
               Clear selection

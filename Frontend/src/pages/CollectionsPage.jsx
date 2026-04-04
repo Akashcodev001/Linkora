@@ -72,7 +72,6 @@ export function CollectionsPage() {
       return
     }
 
-    // Only update if selectedId is not set or is invalid
     if (!selectedId) {
       const firstId = getId(collections[0])
       if (firstId !== selectedId) {
@@ -117,7 +116,6 @@ export function CollectionsPage() {
       return
     }
 
-    // Only update if selectedItemToAdd is not set or is invalid
     if (!selectedItemToAdd) {
       const firstId = getId(availableItems[0])
       if (firstId !== selectedItemToAdd) {
@@ -270,7 +268,7 @@ export function CollectionsPage() {
                 <button
                   key={collectionId}
                   type="button"
-                  className={`focus-ring w-full rounded-default border p-3 text-left transition ${isActive ? 'border-brand/40 bg-brand-soft' : 'border-border bg-white hover:bg-surface'}`}
+                  className={`focus-ring w-full rounded-default border p-3 text-left transition ${isActive ? 'border-brand/40 bg-brand-soft' : 'border-border bg-surface hover:bg-surface-2'}`}
                   onClick={() => setSelectedId(collectionId)}
                 >
                   <p className="line-clamp-1 text-sm font-semibold text-text-primary">{collection?.name || 'Untitled collection'}</p>
@@ -330,7 +328,7 @@ export function CollectionsPage() {
               <p className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">Add item</p>
               <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                 <select
-                  className="focus-ring h-10 rounded-default border border-border bg-white px-3 text-sm text-text-secondary"
+                  className="focus-ring h-10 rounded-default border border-border bg-surface px-3 text-sm text-text-primary"
                   value={selectedItemToAdd}
                   onChange={(event) => setSelectedItemToAdd(event.target.value)}
                   disabled={!availableItems.length}
@@ -356,7 +354,7 @@ export function CollectionsPage() {
                 {selectedItems.map((item) => {
                   const itemId = getId(item)
                   return (
-                    <li key={itemId} className="flex flex-wrap items-center justify-between gap-2 rounded-default border border-border bg-white px-3 py-2">
+                    <li key={itemId} className="flex flex-wrap items-center justify-between gap-2 rounded-default border border-border bg-surface px-3 py-2">
                       <div>
                         <Link to={`/item/${itemId}`} className="text-sm font-medium text-text-primary hover:text-brand">
                           {item?.title || 'Untitled item'}

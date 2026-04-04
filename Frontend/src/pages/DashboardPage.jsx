@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import dayjs from 'dayjs'
@@ -60,6 +60,27 @@ const asTotal = (payload, fallbackLength) => {
   }
 
   return fallbackLength
+}
+
+const itemIdentityKey = (item) => {
+  const id = String(item?.id || item?._id || '')
+  const updatedAt = String(item?.updatedAt || item?.createdAt || '')
+  const status = String(item?.aiStatus || item?.status || '')
+  const processingError = String(item?.processingError || '')
+  return `${id}|${updatedAt}|${status}|${processingError}`
+}
+
+const areItemsEquivalent = (left, right) => {
+  if (!Array.isArray(left) || !Array.isArray(right)) return false
+  if (left.length !== right.length) return false
+
+  for (let index = 0; index < left.length; index += 1) {
+    if (itemIdentityKey(left[index]) !== itemIdentityKey(right[index])) {
+      return false
+    }
+  }
+
+  return true
 }
 
 const normalizeStatus = (item) => {
@@ -142,9 +163,9 @@ export function DashboardPage() {
   const [reprocessItem] = useReprocessItemMutation()
   const { item: polledItem } = useAiPolling(pollItemId)
 
-  const items = asList(itemsData, ['items', 'data'])
-  const collections = asList(collectionsData, ['collections', 'data'])
-  const resurfacingItems = asList(resurfacingData, ['items', 'data'])
+  const items = useMemo(() => asList(itemsData, ['items', 'data']), [itemsData])
+  const collections = useMemo(() => asList(collectionsData, ['collections', 'data']), [collectionsData])
+  const resurfacingItems = useMemo(() => asList(resurfacingData, ['items', 'data']), [resurfacingData])
 
   const totalItems = asTotal(itemsData, items.length)
   const totalCollections = asTotal(collectionsData, collections.length)
@@ -177,7 +198,7 @@ export function DashboardPage() {
   useEffect(() => {
     if (!items.length) {
       if (page === 1) {
-        setLocalItems([])
+        setLocalItems((prev) => (prev.length ? [] : prev))
       }
       return
     }
@@ -186,7 +207,9 @@ export function DashboardPage() {
       const merged = page === 1 ? [] : [...prev]
       const map = new Map(merged.map((item) => [String(item?.id || item?._id), item]))
       items.forEach((item) => map.set(String(item?.id || item?._id), item))
-      return Array.from(map.values())
+
+      const next = Array.from(map.values())
+      return areItemsEquivalent(prev, next) ? prev : next
     })
   }, [items, page])
 
@@ -204,8 +227,7 @@ export function DashboardPage() {
 
     setLocalItems((prev) => {
       const itemExists = prev.find((item) => String(item?.id || item?._id) === itemId)
-      
-      // Only update if item exists
+
       if (!itemExists) {
         return prev
       }
@@ -221,7 +243,6 @@ export function DashboardPage() {
       })
     })
 
-    // Handle terminal states - only run once when status changes
     if (status === 'processed' || status === 'failed') {
       setPollItemId(null)
       toast.success(status === 'processed' ? 'AI processing complete' : 'AI processing failed')

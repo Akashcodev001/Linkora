@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Folder, Home, Network, Search, Shield, Sparkles } from 'lucide-react'
+import { Folder, GitBranch, Home, Network, Search, Shield, Sparkles } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 import { cn } from '@/lib/cn'
 import Highlighter from '@/components/ui/Highlighter'
@@ -9,6 +9,7 @@ const baseNavItems = [
   { label: 'Dashboard', to: ROUTES.DASHBOARD, icon: Home },
   { label: 'Search', to: ROUTES.SEARCH, icon: Search },
   { label: 'Collections', to: ROUTES.COLLECTIONS, icon: Folder },
+  { label: 'Clusters', to: ROUTES.CLUSTERS, icon: GitBranch },
   { label: 'Graph', to: ROUTES.GRAPH, icon: Network },
   { label: 'Resurfacing', to: ROUTES.RESURFACING, icon: Sparkles },
 ]

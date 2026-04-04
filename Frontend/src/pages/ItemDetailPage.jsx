@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   useGetItemQuery,
@@ -177,12 +177,25 @@ export function ItemDetailPage() {
     if (!Array.isArray(effectiveItem?.tags)) {
       return []
     }
-    // Handle both string tags and object tags with {_id, name}
     return effectiveItem.tags.map(tag => {
       if (typeof tag === 'string') return { _id: tag, name: tag }
       return { _id: tag?._id || tag?.id || tag?.name, name: tag?.name || tag }
     })
   }, [effectiveItem])
+
+  const suggestedAutoTags = useMemo(() => {
+    const rawAutoTags = Array.isArray(effectiveItem?.metadata?.autoTags) ? effectiveItem.metadata.autoTags : []
+    const existing = new Set(
+      effectiveTags
+        .map((tag) => String(tag?.name || tag || '').trim().toLowerCase())
+        .filter(Boolean),
+    )
+
+    return rawAutoTags
+      .map((tag) => String(tag || '').trim())
+      .filter((tag) => tag && !existing.has(tag.toLowerCase()))
+      .slice(0, 8)
+  }, [effectiveItem?.metadata?.autoTags, effectiveTags])
 
   const handleSaveTags = async () => {
     const nextTags = tagsInput
@@ -197,6 +210,24 @@ export function ItemDetailPage() {
       refetch()
     } catch {
       toast.error('Could not update tags')
+    }
+  }
+
+  const handleApplySuggestedTag = async (tagName) => {
+    const normalized = String(tagName || '').trim()
+    if (!normalized) return
+
+    const merged = [...new Set([
+      ...effectiveTags.map((tag) => String(tag?.name || tag || '').trim()).filter(Boolean),
+      normalized,
+    ])]
+
+    try {
+      await updateItem({ id: itemId, tags: merged }).unwrap()
+      toast.success(`Added tag: ${normalized}`)
+      refetch()
+    } catch {
+      toast.error('Could not apply suggested tag')
     }
   }
 
@@ -233,7 +264,7 @@ export function ItemDetailPage() {
       await createHighlight({
         itemId,
         text: highlightText.trim(),
-        color: 'yellow', // Default color
+        color: 'yellow',
         note: highlightNote.trim(),
       }).unwrap()
       setHighlightText('')
@@ -255,6 +286,37 @@ export function ItemDetailPage() {
     }
   }
 
+  const aiStatus = normalizeStatus(effectiveItem || item || {})
+  const isAiPending = aiStatus === 'pending' || aiStatus === 'processing'
+  const isAiGeneratingTags = isAiPending && suggestedAutoTags.length === 0
+  const isGeneratingSummary = isAiPending && !effectiveItem?.summary
+  const isComputingRelated = isAiPending && !relatedLoading && relatedItems.length === 0
+
+  useEffect(() => {
+    if (!itemId || !effectiveItem) return
+
+    const status = normalizeStatus(effectiveItem)
+    if ((status === 'pending' || status === 'processing') && !pollItemId) {
+      setPollItemId(itemId)
+      return
+    }
+
+    if (status !== 'pending' && status !== 'processing' && pollItemId) {
+      setPollItemId(null)
+    }
+  }, [itemId, effectiveItem?.aiStatus, effectiveItem?.status, effectiveItem?.processingError, pollItemId])
+
+  useEffect(() => {
+    if (!itemId) return
+    refetchRelated()
+  }, [
+    itemId,
+    effectiveItem?.clusterId,
+    effectiveItem?.topic,
+    effectiveItem?.embeddings?.length,
+    effectiveItem?.metadata?.autoTags?.length,
+  ])
+
   if (isLoading) {
     return <ItemDetailSkeleton />
   }
@@ -268,8 +330,6 @@ export function ItemDetailPage() {
       />
     )
   }
-
-  const aiStatus = normalizeStatus(effectiveItem)
 
   return (
     <div className="space-y-4">
@@ -287,7 +347,14 @@ export function ItemDetailPage() {
           <div className="space-y-1">
             <h1 className="text-xl font-semibold text-text-primary">{effectiveItem?.title || 'Untitled item'}</h1>
             <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Quick summary</p>
-            <p className="text-sm text-text-secondary">{effectiveItem?.summary || 'No quick summary generated yet.'}</p>
+            {isGeneratingSummary ? (
+              <div className="inline-flex items-center gap-2 rounded-md border border-dashed border-border bg-surface-2 px-2.5 py-1.5 text-xs text-text-secondary">
+                <Spinner size={14} />
+                <span>Generating quick summary...</span>
+              </div>
+            ) : (
+              <p className="text-sm text-text-secondary">{effectiveItem?.summary || 'No quick summary generated yet.'}</p>
+            )}
           </div>
 
           <section className="space-y-2 rounded-lg border border-border bg-surface p-3">
@@ -393,6 +460,12 @@ export function ItemDetailPage() {
 
           <Card padding="comfortable" className="space-y-3">
             <h2 className="text-sm font-semibold text-text-primary">Tags</h2>
+            {isAiGeneratingTags ? (
+              <div className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-surface-2 px-2.5 py-2 text-xs text-text-secondary">
+                <Spinner size={14} />
+                <span>Generating AI tags from summary and content...</span>
+              </div>
+            ) : null}
             <Input
               placeholder="tag1, tag2, tag3"
               value={tagsInput}
@@ -409,6 +482,27 @@ export function ItemDetailPage() {
                 </Badge>
               ))}
             </div>
+
+            {suggestedAutoTags.length ? (
+              <div className="space-y-2 rounded-lg border border-dashed border-border bg-surface-2 p-2.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">AI tag suggestions</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {suggestedAutoTags.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      className="focus-ring rounded-full border border-brand/25 bg-brand-soft px-2.5 py-1 text-xs font-medium text-brand transition hover:bg-brand-light"
+                      onClick={() => handleApplySuggestedTag(tag)}
+                      disabled={savingTags}
+                    >
+                      + {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : isAiPending ? (
+              <p className="text-xs text-text-muted">Suggestions will appear once AI processing completes.</p>
+            ) : null}
           </Card>
 
           <Card padding="comfortable" className="space-y-3">
@@ -421,6 +515,11 @@ export function ItemDetailPage() {
             {relatedLoading ? (
               <div className="py-4 text-center">
                 <Spinner size={16} />
+              </div>
+            ) : isComputingRelated ? (
+              <div className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-surface-2 px-3 py-2 text-xs text-text-secondary">
+                <Spinner size={14} />
+                <span>Finding related items...</span>
               </div>
             ) : relatedItems.length ? (
               <ul className="space-y-2">

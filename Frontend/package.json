@@ -37,6 +37,7 @@
     "react-dom": "^19.2.0",
     "react-force-graph": "^1.48.2",
     "react-force-graph-2d": "^1.29.1",
+    "react-force-graph-3d": "^1.29.1",
     "react-hook-form": "^7.72.0",
     "react-hot-toast": "^2.6.0",
     "react-redux": "^9.2.0",

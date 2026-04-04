@@ -12,6 +12,7 @@ import { generateDetailedSummary, generateSummary } from './summary.service.js';
 import { generateTags } from './tags.service.js';
 import { extractContent } from './extraction.service.js';
 import { upsertItemVector } from './qdrant.service.js';
+import { clusterUserItems } from './cluster.service.js';
 
 const RETRY_DELAY_MS = {
     1: 0,
@@ -117,12 +118,25 @@ async function getOrCreateTagIds(userId, names) {
     return ids;
 }
 
-/**
- * Process unified "process-item" job type
- * Orchestrates: extraction → summarization → tagging → embedding
- */
+async function attachAutoTagSuggestions(item, aiText, itemId) {
+    try {
+        const autoTags = await generateTags(aiText);
+        if (Array.isArray(autoTags) && autoTags.length > 0) {
+            item.metadata = item.metadata || {};
+            item.metadata.autoTags = [...new Set(autoTags.map((tag) => String(tag || '').trim()).filter(Boolean))];
+            return item.metadata.autoTags;
+        }
+    } catch (error) {
+        logEvent('warn', 'summary_auto_tags_skipped', {
+            itemId: String(itemId),
+            error: error.message,
+        });
+    }
+
+    return [];
+}
+
 async function processItemPipeline(userId, itemId, item, dbJobId) {
-    // Step 1: Extraction (content + metadata)
     const extracted = await extractContent(item);
     const aiText = extracted.cleanedText || extracted.content || buildAiText(item);
 
@@ -130,7 +144,6 @@ async function processItemPipeline(userId, itemId, item, dbJobId) {
         throw new Error('empty_content');
     }
 
-    // Step 2: Summarization
     let summary = '';
     let detailedSummary = '';
     try {
@@ -158,7 +171,6 @@ async function processItemPipeline(userId, itemId, item, dbJobId) {
         });
     }
 
-    // Step 3: Tagging
     let autoTags = [];
     try {
         autoTags = await generateTags(aiText);
@@ -175,14 +187,12 @@ async function processItemPipeline(userId, itemId, item, dbJobId) {
         });
     }
 
-    // Step 4: Embedding
     try {
         const rawVector = await generateEmbedding(aiText);
         if (Array.isArray(rawVector) && rawVector.length > 0) {
             const vector = normalizeVectorDimension(rawVector);
             item.embeddings = vector;
 
-            // Upsert to Qdrant
             await upsertItemVector({
                 userId,
                 itemId,
@@ -197,7 +207,6 @@ async function processItemPipeline(userId, itemId, item, dbJobId) {
         });
     }
 
-    // Save item with all updates
     await item.save();
 
     logEvent('info', 'pipeline_process_item_completed', {
@@ -244,7 +253,21 @@ export async function processJob(queueJob) {
     }
 
     if (jobType === 'cluster-items') {
-        await markJob(dbJobId, { $set: { status: 'success', lastError: null }, $inc: { attempts: 1 } });
+        const clusterResult = await clusterUserItems(userId);
+
+        await markJob(dbJobId, {
+            $set: { status: 'success', lastError: null },
+            $inc: { attempts: 1 },
+        });
+
+        logEvent('info', 'cluster_job_completed', {
+            jobId: dbJobId || String(queueJob.id),
+            userId: String(userId),
+            itemId: String(itemId),
+            clusterCount: Number(clusterResult?.clusterCount || 0),
+            updatedCount: Number(clusterResult?.updatedCount || 0),
+            mode: clusterResult?.reason || 'unknown',
+        });
         return;
     }
 
@@ -270,6 +293,8 @@ export async function processJob(queueJob) {
         } catch {
             item.detailedSummary = summary;
         }
+
+        await attachAutoTagSuggestions(item, aiText, itemId);
 
         await item.save();
     } else if (jobType === 'tag-item') {

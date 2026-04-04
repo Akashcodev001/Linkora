@@ -10,6 +10,7 @@ import { ROUTES } from '@/constants/routes'
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const SearchPage = lazy(() => import('@/pages/SearchPage'))
 const CollectionsPage = lazy(() => import('@/pages/CollectionsPage'))
+const ClustersPage = lazy(() => import('@/pages/ClustersPage'))
 const AdminDashboardPage = lazy(() => import('@/pages/AdminDashboardPage'))
 const GraphPage = lazy(() => import('@/pages/GraphPage'))
 const ItemDetailPage = lazy(() => import('@/pages/ItemDetailPage'))
@@ -68,6 +69,7 @@ export function AppRouter() {
             <Route path={ROUTES.DASHBOARD.slice(1)} element={<DashboardPage />} />
             <Route path={ROUTES.SEARCH.slice(1)} element={<SearchPage />} />
             <Route path={ROUTES.COLLECTIONS.slice(1)} element={<CollectionsPage />} />
+            <Route path={ROUTES.CLUSTERS.slice(1)} element={<ClustersPage />} />
             <Route
               path={ROUTES.ADMIN.slice(1)}
               element={

@@ -12,8 +12,24 @@ export const QUEUE_NAMES = {
 
 const WORKER_HEARTBEAT_KEY = process.env.AI_WORKER_HEARTBEAT_KEY || 'linkora:ai-worker:heartbeat';
 
-const AI_JOB_TYPES = ['summarize-item', 'tag-item', 'embed-item'];
+// summarize-item now also writes metadata.autoTags, so separate tag-item is not queued by default.
+const AI_JOB_TYPES = ['summarize-item', 'embed-item', 'cluster-items'];
 const QUERY_EMBEDDING_TTL_SECONDS = 60 * 60;
+
+function getPriorityForType(type) {
+    if (type === 'summarize-item') return 1;
+    if (type === 'embed-item') return 2;
+    if (type === 'cluster-items') return 5;
+    return 3;
+}
+
+function getInitialDelayForType(type) {
+    if (type === 'cluster-items') {
+        return 2 * 60 * 1000;
+    }
+
+    return buildDelayForAttempt(1);
+}
 
 function shouldBypassQueueForCurrentRun() {
     const isTest = process.env.NODE_ENV === 'test';
@@ -178,7 +194,8 @@ export async function enqueueAiPipelineJobs(itemId, userId) {
                     attempt: 1,
                 },
                 {
-                    delay: buildDelayForAttempt(1),
+                    delay: getInitialDelayForType(type),
+                    priority: getPriorityForType(type),
                     removeOnComplete: 500,
                     removeOnFail: 500,
                 }
@@ -209,6 +226,70 @@ export async function enqueueAiPipelineJobs(itemId, userId) {
     }
 
     return queuedJobs;
+}
+
+export async function enqueueClusterRebuildJob(itemId, userId, options = {}) {
+    if (shouldBypassQueueForCurrentRun()) {
+        return null;
+    }
+
+    const processingQueue = getQueue(QUEUE_NAMES.AI_PROCESSING);
+    const normalizedItemId = String(itemId || '').trim();
+    const normalizedUserId = String(userId || '').trim();
+
+    if (!normalizedItemId || !normalizedUserId) {
+        throw new Error('enqueue_invalid_identifiers');
+    }
+
+    if (!processingQueue) {
+        return null;
+    }
+
+    const existingPending = await jobRepository.findPendingJobByItemAndType(
+        normalizedUserId,
+        normalizedItemId,
+        'cluster-items'
+    );
+
+    if (existingPending) {
+        return {
+            queueJobId: existingPending.queueJobId || null,
+            jobId: String(existingPending._id),
+            deduped: true,
+        };
+    }
+
+    const jobDoc = await jobRepository.createJob({
+        userId: normalizedUserId,
+        itemId: normalizedItemId,
+        type: 'cluster-items',
+        status: 'pending',
+        attempts: 0,
+    });
+
+    const bullJob = await processingQueue.add(
+        'cluster-items',
+        {
+            userId: normalizedUserId,
+            itemId: normalizedItemId,
+            type: 'cluster-items',
+            jobId: String(jobDoc._id),
+            attempt: 1,
+            reason: String(options.reason || 'manual').slice(0, 120),
+        },
+        {
+            delay: Number(options.delayMs || 0),
+            removeOnComplete: 500,
+            removeOnFail: 500,
+        }
+    );
+
+    await jobRepository.attachQueueJobId(jobDoc._id, String(bullJob.id));
+
+    return {
+        queueJobId: bullJob.id,
+        jobId: String(jobDoc._id),
+    };
 }
 
 function buildQueryEmbeddingCacheKey(query) {
