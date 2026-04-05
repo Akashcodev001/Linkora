@@ -2,11 +2,13 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci --omit=dev
+COPY Backend/package*.json ./Backend/
+COPY ai-service/package*.json ./ai-service/
+RUN npm ci --omit=dev --prefix ./Backend && npm ci --omit=dev --prefix ./ai-service
 
-COPY . .
+COPY Backend ./Backend
+COPY ai-service ./ai-service
 
-EXPOSE 3000
+EXPOSE 3000 5001
 
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "PORT=5001 node /app/ai-service/src/server.js & node /app/Backend/server.js"]
