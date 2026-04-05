@@ -1,7 +1,8 @@
 # Local secrets
 .env
 .env.*
-!.env.example
+.env-example
+.env.example
 
 # Build / runtime artifacts
 node_modules/
