@@ -71,6 +71,10 @@ const itemSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
+        imageDescription: {
+            type: String,
+            default: null,
+        },
         detailedSummary: {
             type: String,
             default: null,

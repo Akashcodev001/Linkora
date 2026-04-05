@@ -9,6 +9,7 @@ import Tag from '../models/tag.model.js';
 import { buildAiText, deriveMetadata } from './content.service.js';
 import { generateEmbedding } from './openai.service.js';
 import { generateDetailedSummary, generateSummary } from './summary.service.js';
+import { generateImageDescription } from './image.service.js';
 import { generateTags } from './tags.service.js';
 import { extractContent } from './extraction.service.js';
 import { upsertItemVector } from './qdrant.service.js';
@@ -27,6 +28,7 @@ const NON_RETRYABLE_PREFIXES = [
     'query_embedding_generation_failed',
     'embedding_generation_failed',
     'summary_generation_failed',
+    'image_description_generation_failed',
 ];
 
 const NON_RETRYABLE_SUBSTRINGS = [
@@ -136,32 +138,77 @@ async function attachAutoTagSuggestions(item, aiText, itemId) {
     return [];
 }
 
+async function buildItemAnalysisText(item, aiText) {
+    const imageUrl = String(item?.metadata?.imageUrl || item?.url || '').trim();
+
+    if (item?.type !== 'image' || !imageUrl) {
+        return {
+            analysisText: aiText,
+            imageDescription: '',
+        };
+    }
+
+    try {
+        const imageDescription = await generateImageDescription(imageUrl, {
+            title: item?.title || '',
+            description: item?.description || '',
+            content: aiText,
+        });
+
+        return {
+            analysisText: imageDescription || aiText,
+            imageDescription,
+        };
+    } catch (error) {
+        logEvent('warn', 'pipeline_image_description_skipped', {
+            itemId: String(item?._id || ''),
+            error: error.message,
+        });
+
+        return {
+            analysisText: aiText,
+            imageDescription: '',
+        };
+    }
+}
+
 async function processItemPipeline(userId, itemId, item, dbJobId) {
     const extracted = await extractContent(item);
-    const aiText = extracted.cleanedText || extracted.content || buildAiText(item);
+    const baseText = extracted.cleanedText || extracted.content || buildAiText(item);
+    const { analysisText, imageDescription } = await buildItemAnalysisText(item, baseText);
 
-    if (!aiText) {
+    if (!analysisText) {
         throw new Error('empty_content');
     }
 
     let summary = '';
     let detailedSummary = '';
     try {
-        summary = await generateSummary(aiText);
+        if (imageDescription) {
+            summary = imageDescription;
+            detailedSummary = imageDescription;
+            item.imageDescription = imageDescription;
+            item.detailedSummary = imageDescription;
+        } else {
+            summary = await generateSummary(analysisText);
+        }
+
         if (summary) {
             item.summary = summary;
         }
 
-        try {
-            detailedSummary = await generateDetailedSummary(aiText);
-            if (detailedSummary) {
-                item.detailedSummary = detailedSummary;
-            } else if (summary) {
-                item.detailedSummary = summary;
-            }
-        } catch {
-            if (summary) {
-                item.detailedSummary = summary;
+        if (!imageDescription) {
+            try {
+                detailedSummary = await generateDetailedSummary(analysisText);
+                if (detailedSummary) {
+                    item.detailedSummary = detailedSummary;
+                } else if (summary) {
+                    item.detailedSummary = summary;
+                }
+            } catch {
+                if (summary) {
+                    item.detailedSummary = summary;
+                }
             }
         }
     } catch (error) {
@@ -173,7 +220,7 @@ async function processItemPipeline(userId, itemId, item, dbJobId) {
 
     let autoTags = [];
     try {
-        autoTags = await generateTags(aiText);
+        autoTags = await generateTags(analysisText);
         if (autoTags && autoTags.length > 0) {
             const tagIds = await getOrCreateTagIds(userId, autoTags);
             item.metadata = item.metadata || {};
@@ -188,7 +235,7 @@ async function processItemPipeline(userId, itemId, item, dbJobId) {
     }
 
     try {
-        const rawVector = await generateEmbedding(aiText);
+        const rawVector = await generateEmbedding(analysisText);
         if (Array.isArray(rawVector) && rawVector.length > 0) {
             const vector = normalizeVectorDimension(rawVector);
             item.embeddings = vector;
@@ -272,7 +319,9 @@ export async function processJob(queueJob) {
     }
 
     const aiText = buildAiText(item);
-    if (!aiText) {
+    const { analysisText, imageDescription } = await buildItemAnalysisText(item, aiText);
+
+    if (!analysisText) {
         throw new Error('empty_content');
     }
 
@@ -282,23 +331,29 @@ export async function processJob(queueJob) {
     }
     // Handle legacy job types for backward compatibility
     else if (jobType === 'summarize-item') {
-        const summary = await generateSummary(aiText);
-        if (!summary) throw new Error('summary_generation_failed');
+        if (imageDescription) {
+            item.imageDescription = imageDescription;
+            item.summary = imageDescription;
+            item.detailedSummary = imageDescription;
+        } else {
+            const summary = await generateSummary(analysisText);
+            if (!summary) throw new Error('summary_generation_failed');
 
-        item.summary = summary;
+            item.summary = summary;
 
-        try {
-            const detailedSummary = await generateDetailedSummary(aiText);
-            item.detailedSummary = detailedSummary || summary;
-        } catch {
-            item.detailedSummary = summary;
+            try {
+                const detailedSummary = await generateDetailedSummary(analysisText);
+                item.detailedSummary = detailedSummary || summary;
+            } catch {
+                item.detailedSummary = summary;
+            }
         }
 
-        await attachAutoTagSuggestions(item, aiText, itemId);
+        await attachAutoTagSuggestions(item, analysisText, itemId);
 
         await item.save();
     } else if (jobType === 'tag-item') {
-        const tags = await generateTags(aiText);
+        const tags = await generateTags(analysisText);
         const tagIds = await getOrCreateTagIds(userId, tags);
 
         item.metadata = item.metadata || {};
@@ -306,7 +361,7 @@ export async function processJob(queueJob) {
         item.tags = [...new Set([...(item.tags || []).map(String), ...tagIds.map(String)])];
         await item.save();
     } else if (jobType === 'embed-item') {
-        const rawVector = await generateEmbedding(aiText);
+        const rawVector = await generateEmbedding(analysisText);
         if (!Array.isArray(rawVector) || rawVector.length === 0) {
             throw new Error('embedding_generation_failed');
         }

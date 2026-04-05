@@ -30,6 +30,7 @@ const itemSchema = new mongoose.Schema(
             default: 'pending',
         },
         summary: { type: String, default: null },
+        imageDescription: { type: String, default: null },
         detailedSummary: { type: String, default: null },
         embeddings: { type: [Number], default: [] },
         processingError: { type: String, default: null },

@@ -49,6 +49,8 @@ const env = {
         process.env.OPENAI_MODEL_EMBEDDING
         || (process.env.OPENAI_API_KEY ? 'text-embedding-ada-002' : 'mistral-embed')
     ).trim(),
+    geminiApiKey: (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.APP_GEMINI_API_KEY || '').trim(),
+    geminiImageModel: (process.env.GEMINI_IMAGE_MODEL || process.env.APP_GEMINI_IMAGE_MODEL || 'gemini-1.5-flash').trim(),
     qdrantUrl: (process.env.QDRANT_URL || process.env.QDRANT_CLUSTER_ENDPOINT || '').trim(),
     qdrantApiKey: (process.env.QDRANT_API_KEY || '').trim(),
     qdrantCollectionName: (process.env.QDRANT_COLLECTION_NAME || 'items').trim(),
