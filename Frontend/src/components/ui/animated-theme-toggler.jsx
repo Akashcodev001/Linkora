@@ -13,7 +13,6 @@ export function AnimatedThemeToggler({ className = '' }) {
       onClick={toggleTheme}
       aria-label="Toggle theme"
       title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-      whileTap={{ scale: 0.98 }}
       className={cn(
         'focus-ring relative inline-flex h-9 w-16 items-center rounded-full border border-border bg-bg-surface p-1 shadow-subtle transition-colors duration-200',
         className,

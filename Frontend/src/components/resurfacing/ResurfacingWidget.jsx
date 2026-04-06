@@ -58,7 +58,7 @@ export function ResurfacingWidget({ items = [], isLoading, onDismiss, dismissing
 
   if (isLoading) {
     return (
-        <Card className="rounded-2xl border-brand/20 bg-brand-light/50" padding="comfortable">
+      <Card className="min-h-[220px] rounded-2xl border-brand/20 bg-brand-light/50" padding="comfortable">
         <Skeleton className="mb-3 h-4 w-44" />
         <div className="grid gap-3 sm:grid-cols-2">
           <Skeleton className="h-24 w-full" />
@@ -69,11 +69,23 @@ export function ResurfacingWidget({ items = [], isLoading, onDismiss, dismissing
   }
 
   if (!visibleItems.length) {
-    return null
+    return (
+      <Card className="min-h-[220px] rounded-2xl border-brand/20 bg-brand-light/50" padding="comfortable">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-brand-dark">
+            <Lightbulb size={16} />
+            From your memory
+          </h2>
+        </div>
+        <div className="grid min-h-[140px] place-items-center rounded-xl border border-dashed border-border/70 bg-bg-surface/60 px-4 text-center">
+          <p className="text-sm text-text-muted">No resurfacing items right now.</p>
+        </div>
+      </Card>
+    )
   }
 
   return (
-    <Card className="rounded-2xl border-brand/20 bg-brand-light/50" padding="comfortable">
+    <Card className="min-h-[220px] rounded-2xl border-brand/20 bg-brand-light/50" padding="comfortable">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-brand-dark">
           <Lightbulb size={16} />

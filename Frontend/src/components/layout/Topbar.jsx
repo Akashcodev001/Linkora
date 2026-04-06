@@ -123,16 +123,17 @@ export function Topbar() {
   return (
     <header className="sticky top-0 z-30 border-b border-border/80 bg-bg-surface/85 px-4 py-3 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center gap-3 justify-end">
-        <div className="relative">
+        <div className="relative h-9 w-9 shrink-0">
           <button 
-            className="focus-ring ml-auto rounded-full border border-border p-2 text-text-secondary hover:bg-bg-hover"
+            className="focus-ring inline-flex h-9 w-9 items-center justify-center rounded-full border border-border text-text-secondary hover:bg-bg-hover"
             onClick={() => setShowNotifications(!showNotifications)}
             aria-label="Notifications"
           >
             <Bell size={16} />
-            {notifications.length > 0 && (
-              <span className="absolute right-0 top-0 flex h-3 w-3 items-center justify-center rounded-full bg-state-error text-[8px] text-white"></span>
-            )}
+            <span
+              className={`absolute right-0 top-0 flex h-3 w-3 items-center justify-center rounded-full bg-state-error text-[8px] text-white ${notifications.length > 0 ? 'opacity-100' : 'opacity-0'}`}
+              aria-hidden="true"
+            ></span>
           </button>
           {showNotifications && (
             <Card className="absolute right-0 top-12 w-80 space-y-2 p-3 shadow-floating">
@@ -157,13 +158,13 @@ export function Topbar() {
             </Card>
           )}
         </div>
-        <div className="hidden text-right md:block">
+        <div className="hidden w-44 text-right md:block">
           <p className="text-xs text-text-muted">Signed in as</p>
-          <p className="text-sm font-medium text-text-primary">{user?.username || user?.email || 'User'}</p>
+          <p className="truncate text-sm font-medium text-text-primary">{user?.username || user?.email || 'User'}</p>
         </div>
-        <AnimatedThemeToggler />
-        <Avatar fallback="LK" />
-        <Button variant="ghost" size="sm" onClick={handleLogout} loading={isLoading}>
+        <AnimatedThemeToggler className="shrink-0" />
+        <Avatar className="shrink-0" fallback="LK" />
+        <Button className="w-[92px] shrink-0 active:scale-100" variant="ghost" size="sm" onClick={handleLogout} loading={isLoading}>
           Logout
         </Button>
       </div>

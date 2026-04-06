@@ -2,6 +2,7 @@ import express from 'express';
 import cookiesParser from 'cookie-parser';
 import helmet from 'helmet';
 import hpp from 'hpp';
+import compression from 'compression';
 import path from 'path';
 import { fileURLToPath } from 'url';
 const app = express();
@@ -31,6 +32,7 @@ const publicDir = path.resolve(__dirname, '../public');
 // Security middleware
 app.use(helmet());
 app.use(hpp());
+app.use(compression());
 
 app.use(express.json());
 app.use(cookiesParser());
@@ -71,6 +73,16 @@ app.use(
 );
 app.use(globalRateLimit());
 app.use(passport.initialize());
+
+/**
+ * Lightweight liveness endpoint for platform probes.
+ */
+app.get('/livez', (req, res) => {
+    return res.status(200).json({
+        status: 'alive',
+        timestamp: new Date().toISOString(),
+    });
+});
 
 /**
  * Health check endpoint
@@ -128,7 +140,23 @@ app.use('/api/search', searchRouter);
 app.use('/api/resurfacing', resurfacingRouter);
 app.use('/api/admin', adminRouter);
 
-app.use(express.static(publicDir));
+app.use('/assets', express.static(path.join(publicDir, 'assets'), {
+    immutable: true,
+    maxAge: '1y',
+    etag: true,
+}));
+
+app.use(express.static(publicDir, {
+    etag: true,
+    maxAge: 0,
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+        }
+    },
+}));
 app.get(/^(?!\/api\/).*/, (req, res) => {
     res.sendFile(path.join(publicDir, 'index.html'));
 });

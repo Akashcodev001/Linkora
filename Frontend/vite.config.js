@@ -20,6 +20,22 @@ export default defineConfig({
     },
   },
   build: {
+    modulePreload: false,
     chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+
+          if (
+            id.includes('react-force-graph') ||
+            id.includes('3d-force-graph') ||
+            id.includes('three')
+          ) {
+            return 'graph-vendor'
+          }
+        },
+      },
+    },
   },
 })
