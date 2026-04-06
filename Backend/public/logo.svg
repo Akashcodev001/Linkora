@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Linkora logo">
+  <rect width="64" height="64" fill="#ececec"/>
+  <g fill="#b78a32">
+    <path d="M12 8h8v48h18v8H12z"/>
+    <path d="M28 8h8v20l14-20h10L42 32l20 24H52L36 38v18h-8z"/>
+  </g>
+</svg>
